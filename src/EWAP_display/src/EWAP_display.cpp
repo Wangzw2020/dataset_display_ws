@@ -2,14 +2,17 @@
 #include <GL/glut.h>
 #include "data_loader.h"
 
-string dataset_txt = "/home/wzw/wks/dataset_display_ws/src/EWAP_display/src/ewap_dataset/seq_eth/obsmat.txt";
+string dataset_txt = "/home/wzw/workspace/dataset_display_ws/src/EWAP_display/src/ewap_dataset/seq_hotel/obsmat.txt";
 
-//string dataset_txt = "/home/wzw/wks/dataset_display_ws/src/EWAP_display/src/ewap_dataset/seq_hotel/obsmat.txt"
+//string dataset_txt = "/home/wzw/workspace/dataset_display_ws/src/EWAP_display/src/ewap_dataset/seq_hotel/obsmat.txt"
 
 GLsizei winWidth = 1600;
 GLsizei winHeight = 900;
 bool act = false;
 double now_frame;
+double end_frame;
+int frame_flag;
+double min_id, max_id;
 Data_loader data;
 
 void drawPed();
@@ -23,9 +26,16 @@ void normalKey(unsigned char key, int xMousePos, int yMousePos);
 
 int main(int argc, char *argv[])
 {
-	data.openFile(dataset_txt);
+	if(!data.openFile(dataset_txt))
+	    return 0;
+    frame_flag = 0;
 	now_frame = data.getDataset()[0].frame_time;
 	cout << "start frame: " << now_frame << endl;
+	end_frame = data.getDataset()[data.getNum()-1].frame_time;
+	cout << "end frame: " << end_frame << endl;
+	min_id = data.getDataset()[0].ped_id;
+	max_id = data.getDataset()[0].ped_id + 5;
+	cout << "min id: " << min_id << "   max id: " << max_id << endl;
 	
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
@@ -75,11 +85,14 @@ void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
-
-	gluLookAt(10.0, 0.0, 50.0,		//相机位置
-			  10.0, 0.0, 0.0,		//相机镜头方向对准物体在世界坐标位置
-			  10.0, 1.0, 0.0);		//镜头向上方向在世界坐标的方向
-
+    
+    int camera_x, camera_y;
+    camera_x = 0.0;
+    camera_y = -3.0;
+	gluLookAt(camera_x, camera_y, 15.0,		//相机位置
+			  camera_x, camera_y, 0.0,		//相机镜头方向对准物体在世界坐标位置
+			  0.0, 10.0, 0.0);		//镜头向上方向在世界坐标的方向
+    
 	glPushMatrix();
 	glScalef(1.0, 1.0, 1.0);
 	
@@ -100,8 +113,15 @@ void update()
 	
 	if(act)
 	{
-		now_frame += frameTime;
+		now_frame += frameTime / 30.0;
+		if (now_frame > end_frame)
+        {
+            min_id = data.getDataset()[0].ped_id;
+	        max_id = data.getDataset()[0].ped_id + 5;
+	        now_frame = data.getDataset()[0].frame_time;
+        }
 		cout << "now_frame: " << now_frame << endl;
+		
 	}
 	
 	glutPostRedisplay();
@@ -110,15 +130,22 @@ void update()
 
 void drawPed()
 {
-	Color color;
-	color.r = 0.0;
-	color.g = 0.0;
-	color.b = 1.0;
-	for (int i=0; i<data.getNum(); ++i)
+    int tmp_flag = frame_flag;
+	Color color(0.0, 0.0, 1.0);
+	for (int i=tmp_flag; i<data.getNum(); ++i)
 	{
-		if (data.getDataset()[i].frame_time <= now_frame)
+		if (data.getDataset()[i].frame_time < now_frame)
 		{
-			drawCircle(data.getDataset()[i].pos_x, data.getDataset()[i].pos_y, data.getDataset()[i].pos_z, 1, color);
+		    if (data.getDataset()[i].ped_id > max_id)
+	        {
+	            ++max_id;
+	            ++min_id;
+	        }
+	        
+		    if (data.getDataset()[i].ped_id >= min_id && data.getDataset()[i].ped_id <= max_id)
+		    {
+		        drawCircle(data.getDataset()[i].pos_x, data.getDataset()[i].pos_y, data.getDataset()[i].pos_z, 0.1, color);
+		    }
 		}
 	}
 
